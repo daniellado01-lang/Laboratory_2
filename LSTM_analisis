@@ -1,0 +1,266 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+from sklearn.preprocessing import LabelEncoder
+import seaborn as sns
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+import warnings
+warnings.filterwarnings('ignore')
+
+
+# 1. CARGA DE DATOS
+
+print("=" * 80)
+print("PASO 1: CARGANDO DATOS")
+print("=" * 80)
+
+# Cargar archivos CSV de entrenamiento y validación
+train_df = pd.read_csv('sent_train.csv')
+valid_df = pd.read_csv('sent_valid.csv')
+
+print(f" Datos de entrenamiento cargados: {train_df.shape[0]} muestras")
+print(f" Datos de validación cargados: {valid_df.shape[0]} muestras")
+print(f"\nDistribución de etiquetas en entrenamiento:")
+print(train_df['label'].value_counts().sort_index())
+print(f"\nDistribución de etiquetas en validación:")
+print(valid_df['label'].value_counts().sort_index())
+
+
+# 2. PREPROCESAMIENTO DE DATOS
+
+print("\n" + "=" * 80)
+print("PASO 2: PREPROCESAMIENTO DE DATOS")
+print("=" * 80)
+
+# Mapeo de etiquetas a nombres de sentimientos
+sentiment_labels = {0: "Bearish", 1: "Bullish", 2: "Neutral"}
+
+# Extraer textos y etiquetas
+X_train = train_df['text'].values
+y_train = train_df['label'].values
+
+X_valid = valid_df['text'].values
+y_valid = valid_df['label'].values
+
+print(f" Datos de entrenamiento extraídos: {len(X_train)} muestras")
+print(f" Datos de entrenamiento extraídos: {len(y_train)} muestras")
+print(f" Datos de validación extraídos: {len(X_valid)} muestras")
+print(f" Datos de validación extraídos: {len(y_valid)} muestras")
+
+
+# 3. TOKENIZACIÓN Y PADDING
+
+print("\n" + "=" * 80)
+print("PASO 3: TOKENIZACIÓN Y PADDING")
+print("=" * 80)
+
+# Parámetros para tokenización
+MAX_VOCAB_SIZE = 10000  # Límite de palabras únicas a usar
+MAX_SEQUENCE_LENGTH = 100  # Longitud máxima de cada secuencia
+
+# Crear tokenizador basado en los datos de entrenamiento
+print(f"Creando tokenizador con vocabulario máximo de {MAX_VOCAB_SIZE}...")
+tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE, oov_token='<OOV>')
+
+# Ajustar el tokenizador con los textos de entrenamiento
+tokenizer.fit_on_texts(X_train)
+print(f" Tokenizador entrenado con {len(tokenizer.word_index)} palabras únicas")
+
+# Convertir textos a secuencias de números
+print(f"\nConvirtiendo textos a secuencias de números...")
+X_train_sequences = tokenizer.texts_to_sequences(X_train)
+X_valid_sequences = tokenizer.texts_to_sequences(X_valid)
+
+print(f" Datos de entrenamiento convertidos a secuencias")
+print(f" Datos de validación convertidos a secuencias")
+
+# Aplicar padding para que todas las secuencias tengan la misma longitud
+print(f"\nAplicando padding a longitud máxima de {MAX_SEQUENCE_LENGTH}...")
+X_train_padded = pad_sequences(X_train_sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post')
+X_valid_padded = pad_sequences(X_valid_sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post')
+
+print(f" Datos de entrenamiento procesados: forma {X_train_padded.shape}")
+print(f" Datos de validación procesados: forma {X_valid_padded.shape}")
+
+
+# 4. CONSTRUCCIÓN DEL MODELO LSTM
+
+print("\n" + "=" * 80)
+print("PASO 4: CONSTRUCCIÓN DEL MODELO LSTM")
+print("=" * 80)
+
+# Crear modelo secuencial
+model = Sequential([
+    Embedding(input_dim=MAX_VOCAB_SIZE, output_dim=128, input_length=MAX_SEQUENCE_LENGTH),
+    Dropout(0.2),
+    LSTM(units=64, return_sequences=True),
+    Dropout(0.2),
+    LSTM(units=32, return_sequences=False),
+    Dropout(0.2),
+    Dense(units=16, activation='relu'),
+    Dense(units=3, activation='softmax')
+])
+
+print("Compilando modelo...")
+optimizer = Adam(learning_rate=0.001)
+model.compile(
+    optimizer=optimizer,
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+print(" Modelo compilado exitosamente")
+print("\nArquitectura del modelo:")
+model.summary()
+
+
+# 5. ENTRENAMIENTO DEL MODELO
+
+print("\n" + "=" * 80)
+print("PASO 5: ENTRENAMIENTO DEL MODELO")
+print("=" * 80)
+
+EPOCHS = 10
+BATCH_SIZE = 32
+VALIDATION_SPLIT = 0.2
+
+print(f"Configuración de entrenamiento:")
+print(f"  - Épocas: {EPOCHS}")
+print(f"  - Tamaño de lote: {BATCH_SIZE}")
+print(f"  - Split de validación: {VALIDATION_SPLIT * 100}%")
+print(f"\nIniciando entrenamiento...")
+
+history = model.fit(
+    X_train_padded,
+    y_train,
+    epochs=EPOCHS,
+    batch_size=BATCH_SIZE,
+    validation_split=VALIDATION_SPLIT,
+    verbose=1
+)
+
+print("\n Entrenamiento completado")
+
+
+# 6. EVALUACIÓN EN DATOS DE VALIDACIÓN
+
+print("\n" + "=" * 80)
+print("PASO 6: EVALUACIÓN EN DATOS DE VALIDACIÓN")
+print("=" * 80)
+
+print("Realizando predicciones en datos de validación...")
+y_valid_pred_probs = model.predict(X_valid_padded)
+y_valid_pred = np.argmax(y_valid_pred_probs, axis=1)
+
+accuracy = accuracy_score(y_valid, y_valid_pred)
+precision = precision_score(y_valid, y_valid_pred, average='weighted')
+recall = recall_score(y_valid, y_valid_pred, average='weighted')
+f1 = f1_score(y_valid, y_valid_pred, average='weighted')
+
+print("\n Predicciones completadas")
+print("\n" + "=" * 80)
+print("RESULTADOS DE VALIDACIÓN")
+print("=" * 80)
+print(f"Accuracy:  {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall:    {recall:.4f}")
+print(f"F1-Score:  {f1:.4f}")
+
+print("\n" + "=" * 80)
+print("REPORTE DETALLADO DE CLASIFICACIÓN")
+print("=" * 80)
+
+class_names = [sentiment_labels[i] for i in range(3)]
+print("\n" + classification_report(y_valid, y_valid_pred, labels=[0,1,2], target_names=class_names))
+
+print("\n" + "=" * 80)
+print("MATRIZ DE CONFUSIÓN")
+print("=" * 80)
+
+cm = confusion_matrix(y_valid, y_valid_pred)
+print("\nMatriz de confusión:")
+print(cm)
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=class_names, yticklabels=class_names)
+plt.title('Matriz de Confusión - Validación')
+plt.ylabel('Etiqueta Real')
+plt.xlabel('Etiqueta Predicha')
+plt.tight_layout()
+plt.savefig('confusion_matrix.png', dpi=300, bbox_inches='tight')
+print("\n Matriz de confusión guardada en 'confusion_matrix.png'")
+
+print("\n" + "=" * 80)
+print("GENERANDO GRÁFICOS DE ENTRENAMIENTO")
+print("=" * 80)
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+axes[0].plot(history.history['loss'], label='Pérdida de Entrenamiento')
+axes[0].plot(history.history['val_loss'], label='Pérdida de Validación')
+axes[0].set_title('Evolución de la Pérdida')
+axes[0].set_xlabel('Época')
+axes[0].set_ylabel('Pérdida')
+axes[0].legend()
+axes[0].grid(True, alpha=0.3)
+
+axes[1].plot(history.history['accuracy'], label='Precisión de Entrenamiento')
+axes[1].plot(history.history['val_accuracy'], label='Precisión de Validación')
+axes[1].set_title('Evolución de la Precisión')
+axes[1].set_xlabel('Época')
+axes[1].set_ylabel('Precisión')
+axes[1].legend()
+axes[1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('training_history.png', dpi=300, bbox_inches='tight')
+print(" Gráficos de entrenamiento guardados en 'training_history.png'")
+
+print("\n" + "=" * 80)
+print("EJEMPLOS DE PREDICCIONES")
+print("=" * 80)
+
+num_examples = 5
+# aseguramos no pedir más ejemplos de los que tenemos
+num_examples = min(num_examples, len(X_valid))
+if num_examples > 0:
+    sample_indices = np.random.choice(len(X_valid), num_examples, replace=False)
+else:
+    sample_indices = []
+
+print(f"\nMostrando {num_examples} ejemplos de predicciones:\n")
+for idx, sample_idx in enumerate(sample_indices, 1):
+    text = X_valid[sample_idx]
+    real_label = y_valid[sample_idx]
+    pred_label = y_valid_pred[sample_idx]
+    confidence = np.max(y_valid_pred_probs[sample_idx])
+    
+    real_sentiment = sentiment_labels[real_label]
+    pred_sentiment = sentiment_labels[pred_label]
+    
+    print(f"Ejemplo {idx}:")
+    print(f"  Texto: {text[:80]}...")
+    print(f"  Sentimiento Real: {real_sentiment}")
+    print(f"  Sentimiento Predicho: {pred_sentiment}")
+    print(f"  Confianza: {confidence:.4f}")
+    print(f"   Correcto" if real_label == pred_label else "  ✗ Incorrecto")
+    print()
+
+print("=" * 80)
+print("RESUMEN FINAL")
+print("=" * 80)
+print(f"\n Modelo LSTM entrenado exitosamente")
+print(f" Datos de validación: {len(X_valid)} muestras")
+print(f" Accuracy en validación: {accuracy:.4f}")
+print(f" Modelos y gráficos guardados")
+print(f"\nArchivos generados:")
+print(f"  - confusion_matrix.png")
+print(f"  - training_history.png")
+print("\n" + "=" * 80)

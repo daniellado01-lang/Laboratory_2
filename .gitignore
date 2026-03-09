@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated images
+*.png
+
+# Virtual environments
+venv/
+.env
+
+# MacOS
+.DS_Store
+

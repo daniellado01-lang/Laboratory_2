@@ -15,13 +15,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-# 1. CARGA DE DATOS
+# 1. DATA LOADING
 
 print("=" * 80)
-print("PASO 1: CARGANDO DATOS")
+print("PASO 1: DATA LOADING")
 print("=" * 80)
 
-# Cargar archivos CSV de entrenamiento y validación
+# Upload CSV files for training and validation
 train_df = pd.read_csv('sent_train.csv')
 valid_df = pd.read_csv('sent_valid.csv')
 
@@ -33,16 +33,16 @@ print(f"\nDistribución de etiquetas en validación:")
 print(valid_df['label'].value_counts().sort_index())
 
 
-# 2. PREPROCESAMIENTO DE DATOS
+# 2. DATA PREPROCESSING
 
 print("\n" + "=" * 80)
-print("PASO 2: PREPROCESAMIENTO DE DATOS")
+print("PASO 2: DATA PREPROCESSING")
 print("=" * 80)
 
-# Mapeo de etiquetas a nombres de sentimientos
+# Mapping labels to feeling names
 sentiment_labels = {0: "Bearish", 1: "Bullish", 2: "Neutral"}
 
-# Extraer textos y etiquetas
+# Extract texts and tags
 X_train = train_df['text'].values
 y_train = train_df['label'].values
 
@@ -55,34 +55,34 @@ print(f" Datos de validación extraídos: {len(X_valid)} muestras")
 print(f" Datos de validación extraídos: {len(y_valid)} muestras")
 
 
-# 3. TOKENIZACIÓN Y PADDING
+# 3. TOKENIZATION AND PADDING
 
 print("\n" + "=" * 80)
-print("PASO 3: TOKENIZACIÓN Y PADDING")
+print("PASO 3: TOKENIZATION AND PADDING")
 print("=" * 80)
 
-# Parámetros para tokenización
-MAX_VOCAB_SIZE = 10000  # Límite de palabras únicas a usar
-MAX_SEQUENCE_LENGTH = 100  # Longitud máxima de cada secuencia
+# Parameters for tokenization
+MAX_VOCAB_SIZE = 10000  # Limit on the number of unique words to use
+MAX_SEQUENCE_LENGTH = 100  # Maximum length of each sequence
 
-# Crear tokenizador basado en los datos de entrenamiento
-print(f"Creando tokenizador con vocabulario máximo de {MAX_VOCAB_SIZE}...")
+# Create tokenizer based on training data
+print(f"Creating tokenizer with maximum vocabulary of {MAX_VOCAB_SIZE}...")
 tokenizer = Tokenizer(num_words=MAX_VOCAB_SIZE, oov_token='<OOV>')
 
-# Ajustar el tokenizador con los textos de entrenamiento
+# Adjust the tokenizer with the training texts
 tokenizer.fit_on_texts(X_train)
-print(f" Tokenizador entrenado con {len(tokenizer.word_index)} palabras únicas")
+print(f" Tokenizer trained with {len(tokenizer.word_index)} unique words")
 
-# Convertir textos a secuencias de números
-print(f"\nConvirtiendo textos a secuencias de números...")
+# Convert texts to sequences of numbers
+print(f"\nConverting texts to sequences of numbers...")
 X_train_sequences = tokenizer.texts_to_sequences(X_train)
 X_valid_sequences = tokenizer.texts_to_sequences(X_valid)
 
 print(f" Datos de entrenamiento convertidos a secuencias")
 print(f" Datos de validación convertidos a secuencias")
 
-# Aplicar padding para que todas las secuencias tengan la misma longitud
-print(f"\nAplicando padding a longitud máxima de {MAX_SEQUENCE_LENGTH}...")
+# Apply padding so that all sequences have the same length
+print(f"\nApplying padding to maximum length of {MAX_SEQUENCE_LENGTH}...")
 X_train_padded = pad_sequences(X_train_sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post')
 X_valid_padded = pad_sequences(X_valid_sequences, maxlen=MAX_SEQUENCE_LENGTH, padding='post')
 
@@ -90,13 +90,13 @@ print(f" Datos de entrenamiento procesados: forma {X_train_padded.shape}")
 print(f" Datos de validación procesados: forma {X_valid_padded.shape}")
 
 
-# 4. CONSTRUCCIÓN DEL MODELO LSTM
+# 4. LSTM MODEL CONSTRUCTION
 
 print("\n" + "=" * 80)
-print("PASO 4: CONSTRUCCIÓN DEL MODELO LSTM")
+print("PASO 4: LSTM MODEL CONSTRUCTION")
 print("=" * 80)
 
-# Crear modelo secuencial
+# Create sequential model
 model = Sequential([
     Embedding(input_dim=MAX_VOCAB_SIZE, output_dim=128, input_length=MAX_SEQUENCE_LENGTH),
     Dropout(0.2),
@@ -121,10 +121,10 @@ print("\nArquitectura del modelo:")
 model.summary()
 
 
-# 5. ENTRENAMIENTO DEL MODELO
+# 5. MODEL TRAINING
 
 print("\n" + "=" * 80)
-print("PASO 5: ENTRENAMIENTO DEL MODELO")
+print("PASO 5: MODEL TRAINING")
 print("=" * 80)
 
 EPOCHS = 10
@@ -149,10 +149,10 @@ history = model.fit(
 print("\n Entrenamiento completado")
 
 
-# 6. EVALUACIÓN EN DATOS DE VALIDACIÓN
+# 6. EVALUATION IN VALIDATION DATA
 
 print("\n" + "=" * 80)
-print("PASO 6: EVALUACIÓN EN DATOS DE VALIDACIÓN")
+print("PASO 6: EVALUATION IN VALIDATION DATA")
 print("=" * 80)
 
 print("Realizando predicciones en datos de validación...")
@@ -228,7 +228,7 @@ print("EJEMPLOS DE PREDICCIONES")
 print("=" * 80)
 
 num_examples = 5
-# aseguramos no pedir más ejemplos de los que tenemos
+# We assure you that we will not ask for more examples than we already have.
 num_examples = min(num_examples, len(X_valid))
 if num_examples > 0:
     sample_indices = np.random.choice(len(X_valid), num_examples, replace=False)
